@@ -1,27 +1,17 @@
 import streamlit as st
-from supabase import create_client
 from groq import Groq
 from pypdf import PdfReader
 
 # =========================
 # CONFIG
 # =========================
-st.set_page_config(page_title="MentorAI SaaS 🚀", layout="wide")
-st.title("🚀 MentorAI")
+st.set_page_config(page_title="MentorAI 🚀", layout="wide")
 
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
-supabase = create_client(
-    st.secrets["SUPABASE_URL"],
-    st.secrets["SUPABASE_KEY"]
-)
 
 # =========================
 # SESSION STATE
 # =========================
-if "user" not in st.session_state:
-    st.session_state.user = None
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -29,123 +19,99 @@ if "pdf_text" not in st.session_state:
     st.session_state.pdf_text = ""
 
 # =========================
-# AUTH (MAGIC LINK)
-# =========================
-def send_magic_link(email):
-    return supabase.auth.sign_in_with_otp({
-        "email": email
-    })
-
-# =========================
-# PDF
+# PDF LOADER
 # =========================
 def read_pdf(file):
     reader = PdfReader(file)
-    return "".join([p.extract_text() or "" for p in reader.pages])
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() or ""
+    return text
 
 # =========================
-# AI
+# AI FUNCTION
 # =========================
 def ask_ai(prompt):
     res = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
-            {"role": "system", "content": "You are MentorAI 🚀"},
+            {"role": "system", "content": "You are MentorAI, a helpful AI learning assistant."},
             {"role": "user", "content": prompt}
         ]
     )
     return res.choices[0].message.content
 
 # =========================
-# SUPABASE SAVE
+# HEADER
 # =========================
-def save_message(user_id, role, content):
-    supabase.table("messages").insert({
-        "user_id": user_id,
-        "role": role,
-        "content": content
-    }).execute()
+st.markdown("""
+# 🚀 MentorAI
+### AI Learning Assistant for Students & Creators
+""")
 
-# =========================
-# LOAD MESSAGES
-# =========================
-def load_messages(user_id):
-    res = supabase.table("messages") \
-        .select("*") \
-        .eq("user_id", user_id) \
-        .order("id") \
-        .execute()
-    return res.data
+st.divider()
 
 # =========================
-# AUTH PAGE
-# =========================
-if st.session_state.user is None:
-
-    st.markdown("## 🔐 Login with Email (Magic Link)")
-
-    email = st.text_input("Enter your email")
-
-    if st.button("Send Login Link"):
-        try:
-            send_magic_link(email)
-            st.success("📩 Magic link sent! Check your email.")
-        except:
-            st.error("Failed to send link")
-
-    st.markdown("---")
-    st.info("After clicking email link, refresh this page.")
-
-    st.stop()
-
-# =========================
-# SIDEBAR
+# SIDEBAR (CLEAN - NO CONFUSION)
 # =========================
 with st.sidebar:
-    st.success(f"User: {st.session_state.user[:8]}")
+    st.markdown("## ⚙️ Controls")
 
-    if st.button("Logout"):
-        st.session_state.user = None
-        st.session_state.messages = []
-        st.rerun()
+    mode = st.radio("Choose Mode", [
+        "💬 Chat Mode",
+        "📚 Study Mode",
+        "📄 PDF Assistant"
+    ])
 
     file = st.file_uploader("Upload PDF", type=["pdf"])
     if file:
         st.session_state.pdf_text = read_pdf(file)
         st.success("PDF Loaded ✔")
 
+    if st.button("🧹 Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
+
 # =========================
-# CHAT UI
+# CHAT UI (SAFE RENDER - NO CUT TEXT)
 # =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-user_input = st.chat_input("Ask MentorAI...")
+# =========================
+# INPUT
+# =========================
+user_input = st.chat_input("Ask MentorAI anything...")
 
 # =========================
-# PROCESS CHAT
+# RESPONSE LOGIC
 # =========================
 if user_input:
-
-    user_id = st.session_state.user
 
     st.session_state.messages.append({
         "role": "user",
         "content": user_input
     })
 
-    save_message(user_id, "user", user_input)
-
     context = st.session_state.pdf_text
 
-    reply = ask_ai(f"{context}\n\nUser: {user_input}")
+    if mode == "📄 PDF Assistant":
+        prompt = f"Answer ONLY from this PDF:\n\n{context}\n\nQuestion: {user_input}"
+    else:
+        prompt = user_input
+
+    reply = ask_ai(prompt)
 
     st.session_state.messages.append({
         "role": "assistant",
         "content": reply
     })
 
-    save_message(user_id, "assistant", reply)
-
     st.rerun()
+
+# =========================
+# MODE INFO (CLEAN UX ONLY)
+# =========================
+st.sidebar.markdown("---")
+st.sidebar.caption("MentorAI runs in demo mode • No login required for now")
