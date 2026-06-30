@@ -1,6 +1,7 @@
 import streamlit as st
 from groq import Groq
 from pypdf import PdfReader
+import speech_recognition as sr
 
 # =========================
 # CONFIG
@@ -40,6 +41,22 @@ def ask_ai(prompt):
         ]
     )
     return res.choices[0].message.content
+# =========================
+# VOICE INPUT
+# =========================
+def voice_to_text():
+    r = sr.Recognizer()
+
+    try:
+        with sr.Microphone() as source:
+            st.info("🎤 Listening...")
+            audio = r.listen(source, timeout=5)
+
+        text = r.recognize_google(audio)
+        return text
+
+    except Exception:
+        return None
 
 # =========================
 # HEADER (CLEAN BRAND STYLE)
@@ -78,16 +95,49 @@ with st.sidebar:
     st.caption("MentorAI • Clean UI Demo")
 
 # =========================
+# =========================
+
+# =========================
 # CHAT DISPLAY (CHATGPT STYLE)
 # =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-
-# =========================
 # INPUT BOX
 # =========================
-user_input = st.chat_input("Ask anything...")
+col1, col2 = st.columns([8, 1])
+
+with col1:
+    user_input = st.chat_input("Ask anything...")
+
+with col2:
+    mic = st.button("🎤")
+
+    if mic:
+        voice_text = voice_to_text()
+
+        if voice_text:
+            st.session_state.voice_text = voice_text
+
+# =========================
+# VOICE PREVIEW
+# =========================
+if "voice_text" in st.session_state:
+
+    st.chat_message("user").markdown(
+    f"🎤 {st.session_state.voice_text}"
+)
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        if st.button("✔ Send Voice"):
+            user_input = st.session_state.voice_text
+            del st.session_state.voice_text
+
+    with c2:
+        if st.button("❌ Cancel"):
+            del st.session_state.voice_text
 
 # =========================
 # LOGIC
@@ -114,11 +164,31 @@ Question: {user_input}
     else:
         prompt = user_input
 
-    reply = ask_ai(prompt)
+    with st.chat_message("assistant"):
+
+        stream = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are MentorAI, a helpful AI mentor for students."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            stream=True
+        )
+
+        response = st.write_stream(
+            (chunk.choices[0].delta.content or "")
+            for chunk in stream
+        )
 
     st.session_state.messages.append({
         "role": "assistant",
-        "content": reply
+        "content": response
     })
 
     st.rerun()
