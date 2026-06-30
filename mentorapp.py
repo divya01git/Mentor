@@ -110,34 +110,6 @@ col1, col2 = st.columns([8, 1])
 with col1:
     user_input = st.chat_input("Ask anything...")
 
-with col2:
-    mic = st.button("🎤")
-
-    if mic:
-        voice_text = voice_to_text()
-
-        if voice_text:
-            st.session_state.voice_text = voice_text
-
-# =========================
-# VOICE PREVIEW
-# =========================
-if "voice_text" in st.session_state:
-
-    st.chat_message("user").markdown(
-    f"🎤 {st.session_state.voice_text}"
-)
-
-    c1, c2 = st.columns(2)
-
-    with c1:
-        if st.button("✔ Send Voice"):
-            user_input = st.session_state.voice_text
-            del st.session_state.voice_text
-
-    with c2:
-        if st.button("❌ Cancel"):
-            del st.session_state.voice_text
 
 # =========================
 # LOGIC
