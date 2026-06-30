@@ -35,57 +35,62 @@ def ask_ai(prompt):
     res = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
-            {"role": "system", "content": "You are MentorAI, a helpful AI learning assistant."},
+            {"role": "system", "content": "You are MentorAI, a helpful AI mentor for students."},
             {"role": "user", "content": prompt}
         ]
     )
     return res.choices[0].message.content
 
 # =========================
-# HEADER
+# HEADER (CLEAN BRAND STYLE)
 # =========================
 st.markdown("""
-# 🚀 MentorAI
-### AI Learning Assistant for Students & Creators
-""")
+<div style="text-align:center; padding:10px;">
+    <h1>🚀 MentorAI</h1>
+    <p style="color:gray;">Your AI Learning & Study Companion</p>
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
 # =========================
-# SIDEBAR (CLEAN - NO CONFUSION)
+# SIDEBAR (MINIMAL CLEAN)
 # =========================
 with st.sidebar:
     st.markdown("## ⚙️ Controls")
 
-    mode = st.radio("Choose Mode", [
-        "💬 Chat Mode",
-        "📚 Study Mode",
+    mode = st.selectbox("Mode", [
+        "💬 Chat",
+        "📚 Study",
         "📄 PDF Assistant"
     ])
 
     file = st.file_uploader("Upload PDF", type=["pdf"])
     if file:
         st.session_state.pdf_text = read_pdf(file)
-        st.success("PDF Loaded ✔")
+        st.success("PDF loaded ✔")
 
     if st.button("🧹 Clear Chat"):
         st.session_state.messages = []
         st.rerun()
 
+    st.markdown("---")
+    st.caption("MentorAI • Clean UI Demo")
+
 # =========================
-# CHAT UI (SAFE RENDER - NO CUT TEXT)
+# CHAT DISPLAY (CHATGPT STYLE)
 # =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # =========================
-# INPUT
+# INPUT BOX
 # =========================
-user_input = st.chat_input("Ask MentorAI anything...")
+user_input = st.chat_input("Ask anything...")
 
 # =========================
-# RESPONSE LOGIC
+# LOGIC
 # =========================
 if user_input:
 
@@ -97,7 +102,15 @@ if user_input:
     context = st.session_state.pdf_text
 
     if mode == "📄 PDF Assistant":
-        prompt = f"Answer ONLY from this PDF:\n\n{context}\n\nQuestion: {user_input}"
+        prompt = f"""
+Use only this PDF context:
+
+{context}
+
+Question: {user_input}
+"""
+    elif mode == "📚 Study":
+        prompt = f"Create a structured explanation/study help for: {user_input}"
     else:
         prompt = user_input
 
@@ -109,9 +122,3 @@ if user_input:
     })
 
     st.rerun()
-
-# =========================
-# MODE INFO (CLEAN UX ONLY)
-# =========================
-st.sidebar.markdown("---")
-st.sidebar.caption("MentorAI runs in demo mode • No login required for now")
